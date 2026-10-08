@@ -1,4 +1,4 @@
-// +build mage
+//go:build mage
 
 package main
 
@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -102,7 +101,7 @@ func Test386() error {
 	return sh.RunWith(map[string]string{"GOARCH": "386"}, goexe, "test", "./...")
 }
 
-//  Run go vet linter
+// Run go vet linter
 func Vet() error {
 	if err := sh.Run(goexe, "vet", "./..."); err != nil {
 		return fmt.Errorf("error running go vet: %v", err)
@@ -133,9 +132,6 @@ func Lint() error {
 
 // Run gofmt linter
 func Fmt() error {
-	if !isGoLatest() {
-		return nil
-	}
 	pkgs, err := packages()
 	if err != nil {
 		return err
@@ -222,10 +218,6 @@ func packages() ([]string, error) {
 		}
 	})
 	return pkgs, err
-}
-
-func isGoLatest() bool {
-	return strings.Contains(runtime.Version(), "1.11")
 }
 
 func isBuildNeeded() (bool, error) {

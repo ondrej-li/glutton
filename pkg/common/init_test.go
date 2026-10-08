@@ -321,7 +321,7 @@ func TestCreateEnvironmentRegistersClosers(t *testing.T) {
 		Notifiers: map[string]reflect.Type{},
 		Parsers:   map[string]reflect.Type{},
 	}
-	env.Savers["TestCloserSaver"] = reflect.TypeOf(TestCloserSaver{})
+	env.Savers["TestCloserSaver"] = reflect.TypeFor[TestCloserSaver]()
 	env = CreateEnvironment(&iface.Configuration{
 		Debug: true,
 		Settings: []iface.Settings{

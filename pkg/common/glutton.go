@@ -3,7 +3,6 @@ package common
 import (
 	"context"
 	"flag"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -28,7 +27,7 @@ func Run() error {
 	flag.Parse()
 
 	if len(*file) > 0 {
-		yamlConfiguration, err = ioutil.ReadFile(*file)
+		yamlConfiguration, err = os.ReadFile(*file)
 		if err != nil {
 			log.Panicf("error reading configuration file %s %+v", *file, err)
 		}
@@ -115,5 +114,5 @@ func initializeRoutes(router *gin.Engine, env *iface.Env) *gin.RouterGroup {
 }
 
 func renderError(c *gin.Context, err error) {
-	c.JSON(http.StatusInternalServerError, map[string]interface{}{"error": err.Error(), "detail": err})
+	c.JSON(http.StatusInternalServerError, map[string]any{"error": err.Error(), "detail": err})
 }
