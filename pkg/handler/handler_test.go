@@ -158,6 +158,34 @@ func TestCreateRedirectHandlerRedirect(t *testing.T) {
 	})
 }
 
+func TestRedirectHandlerKeepsRejectionStatus(t *testing.T) {
+	mp := &MockParser{}
+	ms := &MockSaver{}
+	mn := &MockNotifier{}
+	router := gin.Default()
+	router.POST("test", handler.RedirectHandler(
+		handler.ValidateTokenHandler(handler.CreateHandler("test", mp, mn, ms, false), "test", []byte(""), false),
+		http.StatusTemporaryRedirect, "https://test.redirect"))
+	req, _ := http.NewRequest("POST", "http://localhost/test", nil)
+	req.Header.Add("token", "not-a-valid-token")
+	testHTTPResponse(t, router, req, func(w *httptest.ResponseRecorder) bool {
+		return assert.Equal(t, http.StatusPreconditionFailed, w.Code) &&
+			assert.Empty(t, w.Header().Get("Location"))
+	})
+}
+
+func TestRedirectHandlerSkipsRedirectOnFailureStatus(t *testing.T) {
+	router := gin.Default()
+	router.POST("test", handler.RedirectHandler(func(c *gin.Context) {
+		c.Status(http.StatusInternalServerError)
+	}, http.StatusTemporaryRedirect, "https://test.redirect"))
+	req, _ := http.NewRequest("POST", "http://localhost/test", nil)
+	testHTTPResponse(t, router, req, func(w *httptest.ResponseRecorder) bool {
+		return assert.Equal(t, http.StatusInternalServerError, w.Code) &&
+			assert.Empty(t, w.Header().Get("Location"))
+	})
+}
+
 func TestGenerateToken(t *testing.T) {
 	env := common.CreateEnvironment(&iface.Configuration{
 		Debug: true,

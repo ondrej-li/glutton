@@ -29,6 +29,10 @@ func RedirectHandler(h gin.HandlerFunc, code int, location string) gin.HandlerFu
 	}
 	return func(c *gin.Context) {
 		h(c)
+		// do not redirect when the wrapped handler already reported a failure
+		if c.Writer.Status() >= http.StatusBadRequest {
+			return
+		}
 		c.Redirect(code, location)
 	}
 }
