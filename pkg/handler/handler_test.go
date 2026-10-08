@@ -1,6 +1,7 @@
 package handler_test
 
 import (
+	"errors"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -112,6 +113,54 @@ func TestCreateHandler(t *testing.T) {
 		ms.AssertExpectations(t)
 		mn.AssertExpectations(t)
 		return true
+	})
+}
+
+func TestCreateHandlerParseError(t *testing.T) {
+	mp := &MockParser{}
+	mp.On("Parse").Return((*iface.PayloadRecord)(nil), errors.New("parse failed"))
+	ms := &MockSaver{}
+	mn := &MockNotifier{}
+	router := gin.Default()
+	router.POST("test", handler.CreateHandler("test", mp, mn, ms, false))
+	req, _ := http.NewRequest("POST", "http://localhost/test", nil)
+	testHTTPResponse(t, router, req, func(w *httptest.ResponseRecorder) bool {
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		mn.AssertNotCalled(t, "Notify")
+		ms.AssertNotCalled(t, "Save")
+		return true
+	})
+}
+
+func TestCreateHandlerNotifierError(t *testing.T) {
+	mp := &MockParser{}
+	mp.On("Parse").Return(&iface.PayloadRecord{}, nil)
+	mn := &MockNotifier{}
+	mn.On("Notify").Return(errors.New("notify failed"))
+	ms := &MockSaver{}
+	ms.On("Save").Return(nil)
+	router := gin.Default()
+	router.POST("test", handler.CreateHandler("test", mp, mn, ms, false))
+	req, _ := http.NewRequest("POST", "http://localhost/test", nil)
+	testHTTPResponse(t, router, req, func(w *httptest.ResponseRecorder) bool {
+		// the payload is still handed to the saver
+		ms.AssertExpectations(t)
+		return assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+}
+
+func TestCreateHandlerSaverError(t *testing.T) {
+	mp := &MockParser{}
+	mp.On("Parse").Return(&iface.PayloadRecord{}, nil)
+	mn := &MockNotifier{}
+	mn.On("Notify").Return(nil)
+	ms := &MockSaver{}
+	ms.On("Save").Return(errors.New("save failed"))
+	router := gin.Default()
+	router.POST("test", handler.CreateHandler("test", mp, mn, ms, false))
+	req, _ := http.NewRequest("POST", "http://localhost/test", nil)
+	testHTTPResponse(t, router, req, func(w *httptest.ResponseRecorder) bool {
+		return assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 }
 

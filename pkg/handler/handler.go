@@ -68,17 +68,21 @@ func CreateHandler(URI string, parser iface.PayloadParser, notifier iface.Payloa
 		payload, err := parser.Parse(c.Request)
 		if err != nil {
 			log.Printf("%s: error parsing contents %+v", URI, err)
-			log.Printf("%+v", c.Request)
+			c.Status(http.StatusBadRequest)
+			return
 		}
-		err = notifier.Notify(payload)
-		if err != nil {
-			log.Printf("%s: error notifying of payload %+v", URI, err)
-			log.Printf("%+v", payload)
+		// notification and saving are both attempted so a notification failure does not lose the payload
+		notifyError := notifier.Notify(payload)
+		if notifyError != nil {
+			log.Printf("%s: error notifying of payload %+v", URI, notifyError)
 		}
-		err = saver.Save(payload)
-		if err != nil {
-			log.Printf("%s: error saving payload %+v", URI, err)
-			log.Printf("%+v", payload)
+		saveError := saver.Save(payload)
+		if saveError != nil {
+			log.Printf("%s: error saving payload %+v", URI, saveError)
+		}
+		if notifyError != nil || saveError != nil {
+			c.Status(http.StatusInternalServerError)
+			return
 		}
 		c.Status(http.StatusOK)
 	}
