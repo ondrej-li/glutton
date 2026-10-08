@@ -302,3 +302,35 @@ func TestCreateEnvironmentFailsOnInvalidTokenKey(t *testing.T) {
 		}, nil)
 	})
 }
+
+type TestCloserSaver struct {
+	closed bool
+}
+
+func (t *TestCloserSaver) Save(*iface.PayloadRecord) error { return nil }
+func (t *TestCloserSaver) Configure(*iface.Settings) error { return nil }
+func (t *TestCloserSaver) Close() error {
+	t.closed = true
+	return nil
+}
+
+func TestCreateEnvironmentRegistersClosers(t *testing.T) {
+	env := &iface.Env{
+		Savers:    map[string]reflect.Type{},
+		Notifiers: map[string]reflect.Type{},
+		Parsers:   map[string]reflect.Type{},
+	}
+	env.Savers["TestCloserSaver"] = reflect.TypeOf(TestCloserSaver{})
+	env = CreateEnvironment(&iface.Configuration{
+		Debug: true,
+		Settings: []iface.Settings{
+			{URI: "save", Saver: "TestCloserSaver", OutputFolder: t.TempDir()},
+		},
+	}, env)
+
+	assert.Len(t, env.Closers, 1)
+	closer, ok := env.Closers[0].(*TestCloserSaver)
+	assert.True(t, ok)
+	closeAll(env)
+	assert.True(t, closer.closed)
+}

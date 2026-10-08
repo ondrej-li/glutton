@@ -36,10 +36,20 @@ func Run() error {
 	if env.Configuration.Debug {
 		log.Printf("current settings: %+v", env.Configuration)
 	}
+	defer closeAll(env)
 	appContext, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 	hookOnExit(cancelFunc)
 	return serve(appContext, env.Server, env.Configuration.Host+":"+env.Configuration.Port)
+}
+
+// closeAll releases all resources held by the environment.
+func closeAll(env *iface.Env) {
+	for _, closer := range env.Closers {
+		if err := closer.Close(); err != nil {
+			log.Printf("error closing %T: %+v", closer, err)
+		}
+	}
 }
 
 // serve runs the HTTP server and blocks until it fails or the provided context is cancelled. Any error returned by the server is reported to the caller instead of being discarded.

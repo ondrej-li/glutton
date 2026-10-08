@@ -1,6 +1,7 @@
 package iface
 
 import (
+	"io"
 	"reflect"
 
 	"github.com/gin-gonic/gin"
@@ -45,4 +46,6 @@ type Env struct {
 	Savers        map[string]reflect.Type
 	Parsers       map[string]reflect.Type
 	Server        *gin.Engine
+	// Closers holds resources that have to be released when the application stops.
+	Closers []io.Closer
 }
