@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"os"
 
 	"github.com/defectus/glutton/pkg/common"
 )
@@ -14,7 +15,7 @@ func main() {
 	err := common.Run()
 	if err != nil {
 		log.Printf("error running %s: %+v", Glutton, err)
-		return
+		os.Exit(1)
 	}
 	log.Printf("Hope you had fun running %s", Glutton)
 }
