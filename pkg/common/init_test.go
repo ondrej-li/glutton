@@ -254,6 +254,7 @@ func TestApplyDefaults(t *testing.T) {
 	assert.Equal(t, "SimpleFileSystemSaver", settings.Saver)
 	assert.Equal(t, "glutton", settings.OutputFolder)
 	assert.Equal(t, "glutton_%d", settings.BaseName)
+	assert.Equal(t, 1048576, settings.MaxBodySize)
 }
 
 func TestCreateEnvironmentRouteWithoutExplicitComponents(t *testing.T) {

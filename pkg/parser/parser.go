@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"io"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -11,14 +12,22 @@ import (
 
 // SimpleParser is the default implementation if the parser interface.
 type SimpleParser struct {
+	maxBodySize int
 }
 
-// Parse reads request and builds a payload from it.
+// Parse reads request and builds a payload from it. When a maximum body size is configured the read is bounded and iface.ErrPayloadTooLarge is returned when the body exceeds it.
 func (s *SimpleParser) Parse(req *http.Request) (*iface.PayloadRecord, error) {
 	payload := &iface.PayloadRecord{}
-	body, err := ioutil.ReadAll(req.Body)
+	reader := io.Reader(req.Body)
+	if s.maxBodySize > 0 {
+		reader = io.LimitReader(req.Body, int64(s.maxBodySize)+1)
+	}
+	body, err := ioutil.ReadAll(reader)
 	if err != nil {
 		return nil, errors.Wrap(err, "error reading payload")
+	}
+	if s.maxBodySize > 0 && len(body) > s.maxBodySize {
+		return nil, iface.ErrPayloadTooLarge
 	}
 	payload.Payload = string(body)
 	payload.Timestamp = time.Now()
@@ -28,6 +37,7 @@ func (s *SimpleParser) Parse(req *http.Request) (*iface.PayloadRecord, error) {
 }
 
 // Configure initilizes the instance of parser.
-func (s *SimpleParser) Configure(*iface.Settings) error {
+func (s *SimpleParser) Configure(settings *iface.Settings) error {
+	s.maxBodySize = settings.MaxBodySize
 	return nil
 }
