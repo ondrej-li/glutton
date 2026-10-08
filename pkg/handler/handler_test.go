@@ -191,18 +191,39 @@ func TestGenerateToken(t *testing.T) {
 		Debug: true,
 		Settings: []iface.Settings{
 			{
-				UseToken: true,
-				URI:      "save",
+				UseToken:     true,
+				URI:          "save",
+				TokenKey:     "0123456789abcdef",
+				OutputFolder: t.TempDir(),
 			},
 		},
 	}, nil)
 	req, _ := http.NewRequest("GET", "http://localhost/v1/glutton/save/token", nil)
+	req.Header.Add(handler.TokenKeyHeader, "0123456789abcdef")
 	testHTTPResponse(t, env.Server, req, func(w *httptest.ResponseRecorder) bool {
 		assert.Equal(t, http.StatusOK, w.Code)
 		p, _ := ioutil.ReadAll(w.Body)
 		log.Printf("server reply: %s", string(p))
 		log.Printf("server header: %+v", w.HeaderMap)
 		return true
+	})
+}
+
+func TestGenerateTokenRequiresKey(t *testing.T) {
+	env := common.CreateEnvironment(&iface.Configuration{
+		Debug: true,
+		Settings: []iface.Settings{
+			{
+				UseToken:     true,
+				URI:          "save",
+				TokenKey:     "0123456789abcdef",
+				OutputFolder: t.TempDir(),
+			},
+		},
+	}, nil)
+	req, _ := http.NewRequest("GET", "http://localhost/v1/glutton/save/token", nil)
+	testHTTPResponse(t, env.Server, req, func(w *httptest.ResponseRecorder) bool {
+		return assert.Equal(t, http.StatusPreconditionFailed, w.Code)
 	})
 }
 
@@ -222,6 +243,7 @@ func TestValidateToken1(t *testing.T) {
 			{
 				UseToken: true,
 				URI:      "save",
+				TokenKey: "0123456789abcdef",
 				Saver:    "TestSaver",
 				Parser:   "TestParser",
 				Notifier: "TestNotifier",
@@ -255,6 +277,7 @@ func TestValidateToken2(t *testing.T) {
 			{
 				UseToken: true,
 				URI:      "save",
+				TokenKey: "0123456789abcdef",
 				Saver:    "TestSaver",
 				Parser:   "TestParser",
 				Notifier: "TestNotifier",
@@ -263,6 +286,7 @@ func TestValidateToken2(t *testing.T) {
 	}, env)
 	token := []byte{}
 	req, _ := http.NewRequest("GET", "http://localhost/v1/glutton/save/token", nil)
+	req.Header.Add(handler.TokenKeyHeader, "0123456789abcdef")
 	testHTTPResponse(t, env.Server, req, func(w *httptest.ResponseRecorder) bool {
 		assert.Equal(t, http.StatusOK, w.Code)
 		token, _ = ioutil.ReadAll(w.Body)

@@ -28,15 +28,22 @@ type DefaultTokenProvider struct {
 	debug                bool
 }
 
-// NewDefaultTokenProvider creates a new instance of the default TokenProvider interface implementation.
+// NewDefaultTokenProvider creates a new instance of the default TokenProvider interface implementation. The key must be a valid AES key (see ValidateKey), otherwise token generation and validation will fail.
 func NewDefaultTokenProvider(maximumTokenDuration time.Duration, key []byte, debug bool) *DefaultTokenProvider {
-	if len(key) == 0 {
-		key = []byte("default-key-change-it-please-now")
-	}
 	return &DefaultTokenProvider{
 		maximumTokenDuration: maximumTokenDuration,
 		key:                  key,
 		debug:                debug,
+	}
+}
+
+// ValidateKey checks that the supplied key can be used to encrypt and decrypt tokens. AES accepts keys of 16, 24 or 32 bytes.
+func ValidateKey(key []byte) error {
+	switch len(key) {
+	case 16, 24, 32:
+		return nil
+	default:
+		return errors.Errorf("token key must be 16, 24 or 32 bytes long, got %d bytes", len(key))
 	}
 }
 

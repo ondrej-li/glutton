@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"crypto/subtle"
 	"log"
 	"net/http"
 	"time"
@@ -10,10 +11,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// CreateTokenHandler setups a handler that returns access tokens.
+// TokenKeyHeader is the header a caller must set to the configured token key in order to obtain an access token.
+const TokenKeyHeader = "token-key"
+
+// CreateTokenHandler setups a handler that returns access tokens. The caller has to present the configured token key in the TokenKeyHeader header.
 func CreateTokenHandler(uri string, key []byte, debug bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		tokenProvider := auth.NewDefaultTokenProvider(5*time.Minute, []byte(key), debug)
+		if subtle.ConstantTimeCompare([]byte(c.GetHeader(TokenKeyHeader)), key) != 1 {
+			log.Printf("token requested for %s without a valid %s header", uri, TokenKeyHeader)
+			c.Status(http.StatusPreconditionFailed)
+			return
+		}
+		tokenProvider := auth.NewDefaultTokenProvider(5*time.Minute, key, debug)
 		token, err := tokenProvider.GenerateToken(uri, time.Now())
 		if err != nil {
 			log.Printf("error generating token %+v", err)

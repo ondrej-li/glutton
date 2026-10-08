@@ -48,7 +48,7 @@ settings:
     smtp_from: your@email.address
     smtp_to: target@email.address
     smtp_password:  # for gmail, configure your account to allow unsecured connection
-    token_key: 01234567890 # a key to use to encrypt access tokens, if enabled
+    token_key: 0123456789abcdef # a key to use to encrypt access tokens, if enabled; must be 16, 24 or 32 bytes
     use_token: false 
     sql_driver: postgres # if configured to use the `DatabaseSaver`
     sql_layout: "INSERT INTO payload(ts, remote, meta, payload) VALUES ($1, $2, $3, $4)" # $1 is the timestamp, $2 is the remote host, $3 is meta data map and $4 is the payload
@@ -89,13 +89,23 @@ SMTPNotifier settings
 Token settings
 
 * `USE_TOKEN`
-* `TOKEN_KEY`
+* `TOKEN_KEY` - the key used to sign access tokens. It must be 16, 24 or 32 bytes long; the application refuses to start otherwise.
 
 Please note that only one route can be defined with environment variables.
 
 ## Endpoint
 
 A sample request can be found in the http/save-basic.http file. Effectively you have to do HTTP `POST` on `/v1/glutton/save`. As the payload is in no paricular format any payload will do.
+
+## Access tokens
+
+If `use_token` is enabled for a route, saving requires a valid `token` header. A token is obtained from `GET /v1/glutton/<uri>/token` and must be presented to that endpoint in the `token-key` header, set to the configured `TOKEN_KEY` (so only callers that know the key can mint a token):
+
+```
+curl -H 'token-key: 0123456789abcdef' http://localhost:4354/v1/glutton/save/token
+```
+
+Tokens are valid for five minutes.
 
 ## Output
 
