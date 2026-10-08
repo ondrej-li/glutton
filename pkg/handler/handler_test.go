@@ -2,7 +2,7 @@ package handler_test
 
 import (
 	"errors"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -107,7 +107,7 @@ func TestCreateHandler(t *testing.T) {
 	req, _ := http.NewRequest("POST", "http://localhost/test", nil)
 	testHTTPResponse(t, router, req, func(w *httptest.ResponseRecorder) bool {
 		assert.Equal(t, http.StatusOK, w.Code)
-		p, _ := ioutil.ReadAll(w.Body)
+		p, _ := io.ReadAll(w.Body)
 		log.Printf("server reply: %s", string(p))
 		mp.AssertExpectations(t)
 		ms.AssertExpectations(t)
@@ -189,7 +189,7 @@ func TestCreateRedirectHandlerNoRedirect(t *testing.T) {
 	req, _ := http.NewRequest("POST", "http://localhost/test", nil)
 	testHTTPResponse(t, router, req, func(w *httptest.ResponseRecorder) bool {
 		assert.Equal(t, http.StatusOK, w.Code)
-		p, _ := ioutil.ReadAll(w.Body)
+		p, _ := io.ReadAll(w.Body)
 		log.Printf("server reply: %s", string(p))
 		mp.AssertExpectations(t)
 		ms.AssertExpectations(t)
@@ -210,7 +210,7 @@ func TestCreateRedirectHandlerRedirect(t *testing.T) {
 	req, _ := http.NewRequest("POST", "http://localhost/test", nil)
 	testHTTPResponse(t, router, req, func(w *httptest.ResponseRecorder) bool {
 		assert.Equal(t, http.StatusTemporaryRedirect, w.Code)
-		p, _ := ioutil.ReadAll(w.Body)
+		p, _ := io.ReadAll(w.Body)
 		log.Printf("server reply: %s", string(p))
 		log.Printf("server header: %+v", w.HeaderMap)
 		mp.AssertExpectations(t)
@@ -255,7 +255,7 @@ func TestGenerateTokenHandlerFailsOnInvalidKey(t *testing.T) {
 	req, _ := http.NewRequest("GET", "http://localhost/token", nil)
 	req.Header.Add(handler.TokenKeyHeader, "short")
 	testHTTPResponse(t, router, req, func(w *httptest.ResponseRecorder) bool {
-		body, _ := ioutil.ReadAll(w.Body)
+		body, _ := io.ReadAll(w.Body)
 		return assert.Equal(t, http.StatusInternalServerError, w.Code) &&
 			assert.Empty(t, body)
 	})
@@ -277,7 +277,7 @@ func TestGenerateToken(t *testing.T) {
 	req.Header.Add(handler.TokenKeyHeader, "0123456789abcdef")
 	testHTTPResponse(t, env.Server, req, func(w *httptest.ResponseRecorder) bool {
 		assert.Equal(t, http.StatusOK, w.Code)
-		p, _ := ioutil.ReadAll(w.Body)
+		p, _ := io.ReadAll(w.Body)
 		log.Printf("server reply: %s", string(p))
 		log.Printf("server header: %+v", w.HeaderMap)
 		return true
@@ -309,9 +309,9 @@ func TestValidateToken1(t *testing.T) {
 		Notifiers: map[string]reflect.Type{},
 		Parsers:   map[string]reflect.Type{},
 	}
-	env.Notifiers["TestNotifier"] = reflect.TypeOf(TestNotifier{})
-	env.Savers["TestSaver"] = reflect.TypeOf(TestSaver{})
-	env.Parsers["TestParser"] = reflect.TypeOf(TestParser{})
+	env.Notifiers["TestNotifier"] = reflect.TypeFor[TestNotifier]()
+	env.Savers["TestSaver"] = reflect.TypeFor[TestSaver]()
+	env.Parsers["TestParser"] = reflect.TypeFor[TestParser]()
 	env = common.CreateEnvironment(&iface.Configuration{
 		Debug: true,
 		Settings: []iface.Settings{
@@ -329,7 +329,7 @@ func TestValidateToken1(t *testing.T) {
 	req.Header.Add("token", "dummy")
 	testHTTPResponse(t, env.Server, req, func(w *httptest.ResponseRecorder) bool {
 		assert.Equal(t, http.StatusPreconditionFailed, w.Code)
-		p, _ := ioutil.ReadAll(w.Body)
+		p, _ := io.ReadAll(w.Body)
 		log.Printf("server reply: %s", string(p))
 		log.Printf("server header: %+v", w.HeaderMap)
 		return true
@@ -343,9 +343,9 @@ func TestValidateToken2(t *testing.T) {
 		Notifiers: map[string]reflect.Type{},
 		Parsers:   map[string]reflect.Type{},
 	}
-	env.Notifiers["TestNotifier"] = reflect.TypeOf(TestNotifier{})
-	env.Savers["TestSaver"] = reflect.TypeOf(TestSaver{})
-	env.Parsers["TestParser"] = reflect.TypeOf(TestParser{})
+	env.Notifiers["TestNotifier"] = reflect.TypeFor[TestNotifier]()
+	env.Savers["TestSaver"] = reflect.TypeFor[TestSaver]()
+	env.Parsers["TestParser"] = reflect.TypeFor[TestParser]()
 	env = common.CreateEnvironment(&iface.Configuration{
 		Debug: true,
 		Settings: []iface.Settings{
@@ -364,14 +364,14 @@ func TestValidateToken2(t *testing.T) {
 	req.Header.Add(handler.TokenKeyHeader, "0123456789abcdef")
 	testHTTPResponse(t, env.Server, req, func(w *httptest.ResponseRecorder) bool {
 		assert.Equal(t, http.StatusOK, w.Code)
-		token, _ = ioutil.ReadAll(w.Body)
+		token, _ = io.ReadAll(w.Body)
 		return true
 	})
 	req, _ = http.NewRequest("POST", "http://localhost/v1/glutton/save", nil)
 	req.Header.Add("token", string(token))
 	testHTTPResponse(t, env.Server, req, func(w *httptest.ResponseRecorder) bool {
 		assert.Equal(t, http.StatusOK, w.Code)
-		p, _ := ioutil.ReadAll(w.Body)
+		p, _ := io.ReadAll(w.Body)
 		log.Printf("server reply: %s", string(p))
 		log.Printf("server header: %+v", w.HeaderMap)
 		return true

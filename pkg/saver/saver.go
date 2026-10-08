@@ -15,13 +15,13 @@ import (
 type SimpleFileSystemSaver struct {
 	root     string
 	basename string
-	counter  int64
+	counter  atomic.Int64
 	debug    bool
 }
 
 // Save saves payload (request) to configured filesystem destination.
 func (s *SimpleFileSystemSaver) Save(payload *iface.PayloadRecord) error {
-	index := atomic.AddInt64(&s.counter, 1)
+	index := s.counter.Add(1)
 	if s.debug {
 		log.Printf("SimpleFileSystemSaver_Save: output file %s", s.filename(index))
 	}

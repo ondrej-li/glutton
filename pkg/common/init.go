@@ -68,7 +68,7 @@ func CreateEnvironment(configuration *iface.Configuration, env *iface.Env) *ifac
 		settings := &env.Configuration.Settings[index]
 		applyDefaults(settings)
 		var (
-			instance interface{}
+			instance any
 			notifier iface.PayloadNotifier
 			saver    iface.PayloadSaver
 			parser   iface.PayloadParser
@@ -141,15 +141,15 @@ func applyDefaults(settings *iface.Settings) {
 }
 
 func registerCompoments(env *iface.Env) {
-	env.Notifiers["NilNotifier"] = reflect.TypeOf(notifier.NilNotifier{})
-	env.Notifiers["SMTPNotifier"] = reflect.TypeOf(notifier.SMTPNotifier{})
-	env.Savers["SimpleFileSystemSaver"] = reflect.TypeOf(saver.SimpleFileSystemSaver{})
-	env.Savers["DatabaseSaver"] = reflect.TypeOf(saver.DatabaseSaver{})
-	env.Parsers["SimpleParser"] = reflect.TypeOf(parser.SimpleParser{})
+	env.Notifiers["NilNotifier"] = reflect.TypeFor[notifier.NilNotifier]()
+	env.Notifiers["SMTPNotifier"] = reflect.TypeFor[notifier.SMTPNotifier]()
+	env.Savers["SimpleFileSystemSaver"] = reflect.TypeFor[saver.SimpleFileSystemSaver]()
+	env.Savers["DatabaseSaver"] = reflect.TypeFor[saver.DatabaseSaver]()
+	env.Parsers["SimpleParser"] = reflect.TypeFor[parser.SimpleParser]()
 }
 
 // createInstanceOf creates an instance of given name and configures it with the given settings (if implements the Configurable interface).
-func createInstanceOf(types map[string]reflect.Type, name string, settings *iface.Settings) (interface{}, error) {
+func createInstanceOf(types map[string]reflect.Type, name string, settings *iface.Settings) (any, error) {
 	if _, found := types[name]; !found {
 		return nil, errors.Errorf("type not found error configuring instance %s with types %+v", name, types)
 	}
@@ -165,7 +165,7 @@ func createInstanceOf(types map[string]reflect.Type, name string, settings *ifac
 
 // valueFromEnvVar recursively traverses the supplied variable (pointer to a structure) and assigns values based on each field's `env` tag. Should the corresponding environment variable be empty the `default` tag's value is used.
 // Note that strings, bools and ints are supported at the moment.
-func valueFromEnvVar(value interface{}) error {
+func valueFromEnvVar(value any) error {
 	if err := applyDefaultTags(value); err != nil {
 		return err
 	}
@@ -173,7 +173,7 @@ func valueFromEnvVar(value interface{}) error {
 }
 
 // applyDefaultTags fills zero valued fields of the supplied structure from their `default` struct tag.
-func applyDefaultTags(value interface{}) error {
+func applyDefaultTags(value any) error {
 	val, err := dereference(value)
 	if err != nil {
 		return err
@@ -196,7 +196,7 @@ func applyDefaultTags(value interface{}) error {
 			if bo, _ := strconv.ParseBool(def); !field.Bool() && bo {
 				field.SetBool(true)
 			}
-		case reflect.Ptr:
+		case reflect.Pointer:
 			if field.Type().Elem().Kind() == reflect.Struct {
 				if err := applyDefaultTags(field.Interface()); err != nil {
 					return errors.Wrapf(err, "error processing %s", typ.Field(i).Name)
@@ -208,7 +208,7 @@ func applyDefaultTags(value interface{}) error {
 }
 
 // applyEnv overrides fields of the supplied structure with the values of the environment variables referenced by their `env` tag. Fields without a set environment variable are left untouched.
-func applyEnv(value interface{}) error {
+func applyEnv(value any) error {
 	val, err := dereference(value)
 	if err != nil {
 		return err
@@ -216,7 +216,7 @@ func applyEnv(value interface{}) error {
 	typ := val.Type()
 	for i := 0; i < val.NumField(); i++ {
 		field := val.Field(i)
-		if field.Kind() == reflect.Ptr {
+		if field.Kind() == reflect.Pointer {
 			if field.Type().Elem().Kind() == reflect.Struct {
 				if err := applyEnv(field.Interface()); err != nil {
 					return errors.Wrapf(err, "error processing %s", typ.Field(i).Name)
@@ -249,9 +249,9 @@ func applyEnv(value interface{}) error {
 }
 
 // dereference returns the structure pointed to by value, or an error if it is not a pointer to a structure.
-func dereference(value interface{}) (reflect.Value, error) {
+func dereference(value any) (reflect.Value, error) {
 	val := reflect.ValueOf(value)
-	if val.Kind() != reflect.Ptr {
+	if val.Kind() != reflect.Pointer {
 		return val, errors.New("only pointer type values are supported")
 	}
 	val = val.Elem()

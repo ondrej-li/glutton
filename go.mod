@@ -1,5 +1,7 @@
 module github.com/defectus/glutton
 
+go 1.27.1
+
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/gin-contrib/cors v0.0.0-20180926132136-4f98e8b8e930

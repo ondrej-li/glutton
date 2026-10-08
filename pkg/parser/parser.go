@@ -2,7 +2,6 @@ package parser
 
 import (
 	"io"
-	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -22,7 +21,7 @@ func (s *SimpleParser) Parse(req *http.Request) (*iface.PayloadRecord, error) {
 	if s.maxBodySize > 0 {
 		reader = io.LimitReader(req.Body, int64(s.maxBodySize)+1)
 	}
-	body, err := ioutil.ReadAll(reader)
+	body, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, errors.Wrap(err, "error reading payload")
 	}
