@@ -1,6 +1,7 @@
 package common
 
 import (
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -90,6 +91,9 @@ func CreateEnvironment(configuration *iface.Configuration, env *iface.Env) *ifac
 			}
 			if saver, ok = instance.(iface.PayloadSaver); !ok {
 				log.Panicf("exptected saver, got %s", reflect.TypeOf(instance))
+			}
+			if closer, ok := instance.(io.Closer); ok {
+				env.Closers = append(env.Closers, closer)
 			}
 		}
 		if len(settings.Parser) > 0 {
