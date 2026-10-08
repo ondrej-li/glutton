@@ -61,7 +61,9 @@ func CreateEnvironment(configuration *iface.Configuration, env *iface.Env) *ifac
 	env.Server = gin.Default()
 	registerCompoments(env)
 	gluttonRoute := initializeRoutes(env.Server, env)
-	for _, settings := range env.Configuration.Settings {
+	for index := range env.Configuration.Settings {
+		settings := &env.Configuration.Settings[index]
+		applyDefaults(settings)
 		var (
 			instance interface{}
 			notifier iface.PayloadNotifier
@@ -71,7 +73,7 @@ func CreateEnvironment(configuration *iface.Configuration, env *iface.Env) *ifac
 			ok       bool
 		)
 		if len(settings.Notifier) > 0 {
-			instance, err = createInstanceOf(env.Notifiers, settings.Notifier, &settings)
+			instance, err = createInstanceOf(env.Notifiers, settings.Notifier, settings)
 			if err != nil {
 				log.Panicf("error creating notifier %+v", err)
 			}
@@ -80,7 +82,7 @@ func CreateEnvironment(configuration *iface.Configuration, env *iface.Env) *ifac
 			}
 		}
 		if len(settings.Saver) > 0 {
-			instance, err = createInstanceOf(env.Savers, settings.Saver, &settings)
+			instance, err = createInstanceOf(env.Savers, settings.Saver, settings)
 			if err != nil {
 				log.Panicf("error creating saver %+v", err)
 			}
@@ -89,7 +91,7 @@ func CreateEnvironment(configuration *iface.Configuration, env *iface.Env) *ifac
 			}
 		}
 		if len(settings.Parser) > 0 {
-			instance, err = createInstanceOf(env.Parsers, settings.Parser, &settings)
+			instance, err = createInstanceOf(env.Parsers, settings.Parser, settings)
 			if err != nil {
 				log.Panicf("error creating parser %+v", err)
 			}
@@ -105,6 +107,21 @@ func CreateEnvironment(configuration *iface.Configuration, env *iface.Env) *ifac
 		gluttonRoute.POST(settings.URI, handler.RedirectHandler(h, http.StatusFound, settings.Redirect))
 	}
 	return env
+}
+
+// applyDefaults fills empty string fields of the provided settings with the values declared in their `default` struct tags. Settings coming from a yaml file bypass the environment based defaults, so without this they would end up with empty component names and paths.
+func applyDefaults(settings *iface.Settings) {
+	value := reflect.ValueOf(settings).Elem()
+	typ := value.Type()
+	for i := 0; i < value.NumField(); i++ {
+		field := value.Field(i)
+		if field.Kind() != reflect.String || len(field.String()) > 0 {
+			continue
+		}
+		if def := typ.Field(i).Tag.Get("default"); len(def) > 0 {
+			field.SetString(def)
+		}
+	}
 }
 
 func registerCompoments(env *iface.Env) {
