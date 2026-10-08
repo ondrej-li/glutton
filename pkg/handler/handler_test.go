@@ -248,6 +248,19 @@ func TestRedirectHandlerSkipsRedirectOnFailureStatus(t *testing.T) {
 	})
 }
 
+func TestGenerateTokenHandlerFailsOnInvalidKey(t *testing.T) {
+	// a key that is not a valid AES length makes token generation fail; the endpoint must not answer with an empty 200
+	router := gin.Default()
+	router.GET("token", handler.CreateTokenHandler("test", []byte("short"), false))
+	req, _ := http.NewRequest("GET", "http://localhost/token", nil)
+	req.Header.Add(handler.TokenKeyHeader, "short")
+	testHTTPResponse(t, router, req, func(w *httptest.ResponseRecorder) bool {
+		body, _ := ioutil.ReadAll(w.Body)
+		return assert.Equal(t, http.StatusInternalServerError, w.Code) &&
+			assert.Empty(t, body)
+	})
+}
+
 func TestGenerateToken(t *testing.T) {
 	env := common.CreateEnvironment(&iface.Configuration{
 		Debug: true,

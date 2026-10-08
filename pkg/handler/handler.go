@@ -26,6 +26,8 @@ func CreateTokenHandler(uri string, key []byte, debug bool) gin.HandlerFunc {
 		token, err := tokenProvider.GenerateToken(uri, time.Now())
 		if err != nil {
 			log.Printf("error generating token %+v", err)
+			c.Status(http.StatusInternalServerError)
+			return
 		}
 		c.Writer.Write([]byte(token))
 	}
