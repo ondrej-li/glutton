@@ -69,8 +69,8 @@ func (d *DefaultTokenProvider) ValidateToken(token, handler string, timestamp ti
 		log.Printf("token timestamp %s expired at %s + %s", tokenTimestamp.String(), timestamp.String(), d.maximumTokenDuration.String())
 		return false, nil
 	}
-	if tokenTimestamp.Add(time.Second).Before(timestamp) {
-		log.Printf("token timestamp %s before %s", tokenTimestamp.String(), timestamp.String())
+	if tokenTimestamp.After(timestamp.Add(time.Second)) {
+		log.Printf("token timestamp %s is in the future at %s", tokenTimestamp.String(), timestamp.String())
 		return false, nil
 	}
 	if d.debug {
