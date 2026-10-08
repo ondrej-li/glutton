@@ -218,14 +218,10 @@ settings:
 	assert.Equal(t, "test", config.Settings[0].Parser)
 }
 
-func TestCreateEnvironmentAppliesDefaults(t *testing.T) {
-	env := CreateEnvironment(&iface.Configuration{
-		Debug: true,
-		Settings: []iface.Settings{
-			{URI: "save"},
-		},
-	}, nil)
-	settings := env.Configuration.Settings[0]
+func TestApplyDefaults(t *testing.T) {
+	settings := new(iface.Settings)
+	applyDefaults(settings)
+	assert.Equal(t, "save", settings.URI)
 	assert.Equal(t, "SimpleParser", settings.Parser)
 	assert.Equal(t, "NilNotifier", settings.Notifier)
 	assert.Equal(t, "SimpleFileSystemSaver", settings.Saver)
@@ -253,6 +249,28 @@ func TestCreateEnvironmentFailsOnUnknownComponent(t *testing.T) {
 			Debug: true,
 			Settings: []iface.Settings{
 				{URI: "save", Parser: "NoSuchParser", OutputFolder: t.TempDir()},
+			},
+		}, nil)
+	})
+}
+
+func TestCreateEnvironmentFailsOnMissingTokenKey(t *testing.T) {
+	assert.Panics(t, func() {
+		CreateEnvironment(&iface.Configuration{
+			Debug: true,
+			Settings: []iface.Settings{
+				{URI: "save", UseToken: true, OutputFolder: t.TempDir()},
+			},
+		}, nil)
+	})
+}
+
+func TestCreateEnvironmentFailsOnInvalidTokenKey(t *testing.T) {
+	assert.Panics(t, func() {
+		CreateEnvironment(&iface.Configuration{
+			Debug: true,
+			Settings: []iface.Settings{
+				{URI: "save", UseToken: true, TokenKey: "too-short", OutputFolder: t.TempDir()},
 			},
 		}, nil)
 	})

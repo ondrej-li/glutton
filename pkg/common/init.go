@@ -9,6 +9,7 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
+	"github.com/defectus/glutton/pkg/auth"
 	"github.com/defectus/glutton/pkg/handler"
 	"github.com/defectus/glutton/pkg/iface"
 	"github.com/defectus/glutton/pkg/notifier"
@@ -101,8 +102,12 @@ func CreateEnvironment(configuration *iface.Configuration, env *iface.Env) *ifac
 		}
 		h := handler.CreateHandler(settings.URI, parser, notifier, saver, settings.Debug)
 		if settings.UseToken {
-			h = handler.ValidateTokenHandler(h, settings.URI, []byte(settings.TokenKey), configuration.Debug)
-			gluttonRoute.GET(settings.URI+"/token", handler.CreateTokenHandler(settings.URI, []byte(settings.TokenKey), configuration.Debug))
+			key := []byte(settings.TokenKey)
+			if err := auth.ValidateKey(key); err != nil {
+				log.Panicf("invalid token configuration for uri %s: %+v", settings.URI, err)
+			}
+			h = handler.ValidateTokenHandler(h, settings.URI, key, configuration.Debug)
+			gluttonRoute.GET(settings.URI+"/token", handler.CreateTokenHandler(settings.URI, key, configuration.Debug))
 		}
 		gluttonRoute.POST(settings.URI, handler.RedirectHandler(h, http.StatusFound, settings.Redirect))
 	}
