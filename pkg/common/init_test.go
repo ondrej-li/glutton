@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/defectus/glutton/pkg/iface"
@@ -215,4 +216,44 @@ settings:
 	assert.Equal(t, "test glutton", config.Settings[0].Name)
 	assert.Equal(t, "/url", config.Settings[0].Redirect)
 	assert.Equal(t, "test", config.Settings[0].Parser)
+}
+
+func TestCreateEnvironmentAppliesDefaults(t *testing.T) {
+	env := CreateEnvironment(&iface.Configuration{
+		Debug: true,
+		Settings: []iface.Settings{
+			{URI: "save"},
+		},
+	}, nil)
+	settings := env.Configuration.Settings[0]
+	assert.Equal(t, "SimpleParser", settings.Parser)
+	assert.Equal(t, "NilNotifier", settings.Notifier)
+	assert.Equal(t, "SimpleFileSystemSaver", settings.Saver)
+	assert.Equal(t, "glutton", settings.OutputFolder)
+	assert.Equal(t, "glutton_%d", settings.BaseName)
+}
+
+func TestCreateEnvironmentRouteWithoutExplicitComponents(t *testing.T) {
+	// a yaml style setting that omits parser/notifier/saver must not produce a nil component panic
+	env := CreateEnvironment(&iface.Configuration{
+		Debug: true,
+		Settings: []iface.Settings{
+			{URI: "save", OutputFolder: t.TempDir()},
+		},
+	}, nil)
+	req, _ := http.NewRequest("POST", "http://localhost/v1/glutton/save", strings.NewReader("payload"))
+	testHTTPResponse(t, env.Server, req, func(w *httptest.ResponseRecorder) bool {
+		return assert.Equal(t, http.StatusOK, w.Code)
+	})
+}
+
+func TestCreateEnvironmentFailsOnUnknownComponent(t *testing.T) {
+	assert.Panics(t, func() {
+		CreateEnvironment(&iface.Configuration{
+			Debug: true,
+			Settings: []iface.Settings{
+				{URI: "save", Parser: "NoSuchParser", OutputFolder: t.TempDir()},
+			},
+		}, nil)
+	})
 }
