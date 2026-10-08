@@ -72,7 +72,8 @@ func initializeRoutes(router *gin.Engine, env *iface.Env) *gin.RouterGroup {
 	config := cors.DefaultConfig()
 	config.AllowAllOrigins = true
 	config.AllowMethods = []string{"GET", "POST", "PUT", "HEAD", "PATCH"}
-	config.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type"}
+	config.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "token"}
+	router.Use(cors.New(config))
 	v1 := router.Group("v1")
 	glutton := v1.Group("glutton")
 	return glutton
