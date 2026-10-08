@@ -218,6 +218,33 @@ settings:
 	assert.Equal(t, "test", config.Settings[0].Parser)
 }
 
+func TestCreateConfigurationEnvironmentOverridesYaml(t *testing.T) {
+	assert.NoError(t, os.Setenv("HOST", "10.0.0.1"))
+	defer os.Unsetenv("HOST")
+
+	config := CreateConfiguration(nil, false, []byte("host: 192.168.0.1\nport: \"9999\"\n"))
+	assert.Equal(t, "10.0.0.1", config.Host)
+	assert.Equal(t, "9999", config.Port)
+}
+
+func TestCreateConfigurationKeepsYamlValues(t *testing.T) {
+	os.Unsetenv("HOST")
+	os.Unsetenv("PORT")
+
+	config := CreateConfiguration(nil, false, []byte("host: 192.168.0.1\nport: \"9999\"\n"))
+	assert.Equal(t, "192.168.0.1", config.Host)
+	assert.Equal(t, "9999", config.Port)
+}
+
+func TestCreateConfigurationAppliesDefaults(t *testing.T) {
+	os.Unsetenv("HOST")
+	os.Unsetenv("PORT")
+
+	config := CreateConfiguration(nil, false, nil)
+	assert.Equal(t, "0.0.0.0", config.Host)
+	assert.Equal(t, "4354", config.Port)
+}
+
 func TestApplyDefaults(t *testing.T) {
 	settings := new(iface.Settings)
 	applyDefaults(settings)

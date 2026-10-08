@@ -19,26 +19,27 @@ import (
 	"github.com/pkg/errors"
 )
 
-// CreateConfiguration makes a configuration by creating or enhancing an existing one. Configuration is made form env. variables (last step) or yaml file (first step). The yaml file is provided as a slice of bytes.
+// CreateConfiguration makes a configuration by creating or enhancing an existing one. Values are taken from the yaml file first (when supplied) and from environment variables last, so environment variables have the highest precedence. Fields that are neither configured nor set default to the value of their `default` struct tag.
 func CreateConfiguration(configuration *iface.Configuration, debug bool, yamlConfiguration []byte) *iface.Configuration {
 	if configuration == nil {
 		configuration = new(iface.Configuration)
 	}
-	valueFromEnvVar(configuration)
-	configuration.Debug = configuration.Debug || debug
+	if err := applyDefaultTags(configuration); err != nil {
+		log.Panicf("createConfigration: failed to apply defaults %+v", err)
+	}
 	if len(yamlConfiguration) > 0 {
 		if err := yaml.Unmarshal(yamlConfiguration, configuration); err != nil {
 			log.Printf("createConfigration: error parsing configuration %+v", err)
 		}
 	}
-	// second, try to use environment to configure the app
+	if err := applyEnv(configuration); err != nil {
+		log.Panicf("createConfigration: failed to read configuration from environment %+v", err)
+	}
+	configuration.Debug = configuration.Debug || debug
+	// if the yaml file did not define any route fall back to the single environment based route
 	if len(configuration.Settings) == 0 {
-		if configuration.Debug {
-			log.Printf("configuration afer yaml contains no settings, using environment to configure")
-		}
 		settings := new(iface.Settings)
-		err := valueFromEnvVar(settings)
-		if err != nil {
+		if err := valueFromEnvVar(settings); err != nil {
 			log.Panicf("createConfigration: failed to read settings %+v", err)
 		}
 		configuration.Settings = append(configuration.Settings, *settings)
@@ -152,45 +153,100 @@ func createInstanceOf(types map[string]reflect.Type, name string, settings *ifac
 	return v.Interface(), nil
 }
 
-// valueFromEnvVar recursively traverses supplied variable (pointer to a structure) and assign values based on each field's `env` tag. Should if containt an `env` and the corresponding env variable be empty the `default` tag's value is used.
+// valueFromEnvVar recursively traverses the supplied variable (pointer to a structure) and assigns values based on each field's `env` tag. Should the corresponding environment variable be empty the `default` tag's value is used.
 // Note that strings, bools and ints are supported at the moment.
 func valueFromEnvVar(value interface{}) error {
-	val := reflect.ValueOf(value)
-	if val.Kind() != reflect.Ptr {
-		return errors.Errorf("valueFromEnvVar: only pointer type values are supported.")
+	if err := applyDefaultTags(value); err != nil {
+		return err
 	}
-	val = val.Elem()
-	if val.Kind() != reflect.Struct {
-		return errors.Errorf("valueFromEnvVar: only struct types are supported.")
+	return applyEnv(value)
+}
+
+// applyDefaultTags fills zero valued fields of the supplied structure from their `default` struct tag.
+func applyDefaultTags(value interface{}) error {
+	val, err := dereference(value)
+	if err != nil {
+		return err
 	}
+	typ := val.Type()
 	for i := 0; i < val.NumField(); i++ {
-		tag := val.Type().Field(i).Tag.Get("env")
-		if len(tag) == 0 {
-			tag = val.Type().Field(i).Name
-		}
-		v := os.Getenv(tag)
-		if len(v) == 0 {
-			v = val.Type().Field(i).Tag.Get("default")
-		}
-		switch val.Type().Field(i).Type.Kind() {
+		field := val.Field(i)
+		def := typ.Field(i).Tag.Get("default")
+		switch field.Kind() {
 		case reflect.String:
-			val.Field(i).SetString(v)
+			if len(field.String()) == 0 {
+				field.SetString(def)
+			}
 		case reflect.Int:
-			in, _ := strconv.ParseInt(v, 10, 64)
-			val.Field(i).SetInt(in)
+			if field.Int() == 0 {
+				in, _ := strconv.ParseInt(def, 10, 64)
+				field.SetInt(in)
+			}
 		case reflect.Bool:
-			bo, _ := strconv.ParseBool(v)
-			val.Field(i).SetBool(bo)
+			if bo, _ := strconv.ParseBool(def); !field.Bool() && bo {
+				field.SetBool(true)
+			}
 		case reflect.Ptr:
-			if val.Type().Field(i).Type.Elem().Kind() == reflect.Struct {
-				err := valueFromEnvVar(val.Field(i).Interface())
-				if err != nil {
-					return errors.Wrapf(err, "error processing %s", val.Type().Field(i).Name)
+			if field.Type().Elem().Kind() == reflect.Struct {
+				if err := applyDefaultTags(field.Interface()); err != nil {
+					return errors.Wrapf(err, "error processing %s", typ.Field(i).Name)
 				}
 			}
-		default:
-			log.Printf("valueFromEnvVar: unsupported kind %s at %s.", val.Type().Field(i).Type.Kind(), val.Type().Field(i).Name)
 		}
 	}
 	return nil
+}
+
+// applyEnv overrides fields of the supplied structure with the values of the environment variables referenced by their `env` tag. Fields without a set environment variable are left untouched.
+func applyEnv(value interface{}) error {
+	val, err := dereference(value)
+	if err != nil {
+		return err
+	}
+	typ := val.Type()
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Field(i)
+		if field.Kind() == reflect.Ptr {
+			if field.Type().Elem().Kind() == reflect.Struct {
+				if err := applyEnv(field.Interface()); err != nil {
+					return errors.Wrapf(err, "error processing %s", typ.Field(i).Name)
+				}
+			}
+			continue
+		}
+		tag := typ.Field(i).Tag.Get("env")
+		if len(tag) == 0 {
+			tag = typ.Field(i).Name
+		}
+		env, present := os.LookupEnv(tag)
+		if !present || len(env) == 0 {
+			continue
+		}
+		switch field.Kind() {
+		case reflect.String:
+			field.SetString(env)
+		case reflect.Int:
+			in, _ := strconv.ParseInt(env, 10, 64)
+			field.SetInt(in)
+		case reflect.Bool:
+			bo, _ := strconv.ParseBool(env)
+			field.SetBool(bo)
+		default:
+			log.Printf("applyEnv: unsupported kind %s at %s.", field.Kind(), typ.Field(i).Name)
+		}
+	}
+	return nil
+}
+
+// dereference returns the structure pointed to by value, or an error if it is not a pointer to a structure.
+func dereference(value interface{}) (reflect.Value, error) {
+	val := reflect.ValueOf(value)
+	if val.Kind() != reflect.Ptr {
+		return val, errors.New("only pointer type values are supported")
+	}
+	val = val.Elem()
+	if val.Kind() != reflect.Struct {
+		return val, errors.New("only struct types are supported")
+	}
+	return val, nil
 }
