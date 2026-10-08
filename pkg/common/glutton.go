@@ -12,6 +12,7 @@ import (
 	"github.com/defectus/glutton/pkg/iface"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 )
 
 // Run is the entry point to Glutton.
@@ -36,10 +37,23 @@ func Run() error {
 		log.Printf("current settings: %+v", env.Configuration)
 	}
 	appContext, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
 	hookOnExit(cancelFunc)
-	go env.Server.Run(env.Configuration.Host + ":" + env.Configuration.Port)
-	<-appContext.Done()
-	return nil
+	return serve(appContext, env.Server, env.Configuration.Host+":"+env.Configuration.Port)
+}
+
+// serve runs the HTTP server and blocks until it fails or the provided context is cancelled. Any error returned by the server is reported to the caller instead of being discarded.
+func serve(ctx context.Context, server *gin.Engine, address string) error {
+	serverError := make(chan error, 1)
+	go func() {
+		serverError <- server.Run(address)
+	}()
+	select {
+	case err := <-serverError:
+		return errors.Wrap(err, "error running server")
+	case <-ctx.Done():
+		return nil
+	}
 }
 
 // hookOnExit listens for signal SIGHUP and once received it closes the provided `closing` channel.
