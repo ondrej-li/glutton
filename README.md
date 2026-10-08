@@ -86,6 +86,8 @@ SMTPNotifier settings
 * `SMTP_TO`
 * `SMTP_PASSWORD`
 
+When `SMTP_USE_TLS` is enabled the SMTP server must support STARTTLS, otherwise the notification is not sent — the connection is never silently downgraded to plain text.
+
 Token settings
 
 * `USE_TOKEN`

@@ -2,13 +2,19 @@ package notifier
 
 import (
 	"bytes"
+	"crypto/tls"
 	"html/template"
 	"log"
+	"net"
 	"net/smtp"
+	"time"
 
 	"github.com/defectus/glutton/pkg/iface"
 	"github.com/pkg/errors"
 )
+
+// smtpDialTimeout is the maximum time allowed to establish the connection to the SMTP server.
+const smtpDialTimeout = 10 * time.Second
 
 // NilNotifier implements the glutton.PayloadNotifier interface but does nothing.
 type NilNotifier struct{}
@@ -67,12 +73,51 @@ Sincerely,
 	return doc.Bytes()
 }
 
-// Notify sends notification over SMTP.
+// Notify sends notification over SMTP. When UseTLS is set the server has to support STARTTLS, otherwise the notification is not sent - this avoids a silent downgrade to an unencrypted connection.
 func (s *SMTPNotifier) Notify(payload *iface.PayloadRecord) error {
-	err := smtp.SendMail(s.Server+":"+s.Port,
-		smtp.PlainAuth("", s.From, s.Password, s.Server),
-		s.From, []string{s.To}, s.PayloadToSMTPMessage(payload))
-	return errors.Wrapf(err, "error sending notification %+v", payload)
+	address := s.Server + ":" + s.Port
+	connection, err := net.DialTimeout("tcp", address, smtpDialTimeout)
+	if err != nil {
+		return errors.Wrapf(err, "error connecting to %s", address)
+	}
+	defer connection.Close()
+
+	client, err := smtp.NewClient(connection, s.Server)
+	if err != nil {
+		return errors.Wrap(err, "error creating smtp client")
+	}
+	defer client.Close()
+
+	if s.UseTLS {
+		if ok, _ := client.Extension("STARTTLS"); !ok {
+			return errors.Errorf("server %s does not support STARTTLS but tls is required", address)
+		}
+		if err := client.StartTLS(&tls.Config{ServerName: s.Server}); err != nil {
+			return errors.Wrap(err, "error starting tls")
+		}
+	}
+	if ok, _ := client.Extension("AUTH"); ok {
+		if err := client.Auth(smtp.PlainAuth("", s.From, s.Password, s.Server)); err != nil {
+			return errors.Wrap(err, "error authenticating")
+		}
+	}
+	if err := client.Mail(s.From); err != nil {
+		return errors.Wrap(err, "error setting sender")
+	}
+	if err := client.Rcpt(s.To); err != nil {
+		return errors.Wrap(err, "error setting recipient")
+	}
+	writer, err := client.Data()
+	if err != nil {
+		return errors.Wrap(err, "error starting message data")
+	}
+	if _, err := writer.Write(s.PayloadToSMTPMessage(payload)); err != nil {
+		return errors.Wrap(err, "error writing message")
+	}
+	if err := writer.Close(); err != nil {
+		return errors.Wrap(err, "error closing message")
+	}
+	return errors.Wrap(client.Quit(), "error sending notification")
 }
 
 // Configure configures this notifier according to settings.
