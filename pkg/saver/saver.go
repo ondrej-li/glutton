@@ -45,6 +45,9 @@ func (s *SimpleFileSystemSaver) Configure(settings *iface.Settings) error {
 	s.root = settings.OutputFolder
 	s.basename = settings.BaseName
 	s.debug = settings.Debug
+	if err := os.MkdirAll(s.root, 0755); err != nil {
+		return errors.Wrapf(err, "error creating output folder %s", s.root)
+	}
 	return nil
 }
 
