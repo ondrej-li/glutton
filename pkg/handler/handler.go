@@ -68,6 +68,10 @@ func CreateHandler(URI string, parser iface.PayloadParser, notifier iface.Payloa
 		payload, err := parser.Parse(c.Request)
 		if err != nil {
 			log.Printf("%s: error parsing contents %+v", URI, err)
+			if err == iface.ErrPayloadTooLarge {
+				c.Status(http.StatusRequestEntityTooLarge)
+				return
+			}
 			c.Status(http.StatusBadRequest)
 			return
 		}

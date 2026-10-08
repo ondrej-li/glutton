@@ -119,17 +119,23 @@ func CreateEnvironment(configuration *iface.Configuration, env *iface.Env) *ifac
 	return env
 }
 
-// applyDefaults fills empty string fields of the provided settings with the values declared in their `default` struct tags. Settings coming from a yaml file bypass the environment based defaults, so without this they would end up with empty component names and paths.
+// applyDefaults fills empty fields of the provided settings with the values declared in their `default` struct tags. Settings coming from a yaml file bypass the environment based defaults, so without this they would end up with empty component names and paths.
 func applyDefaults(settings *iface.Settings) {
 	value := reflect.ValueOf(settings).Elem()
 	typ := value.Type()
 	for i := 0; i < value.NumField(); i++ {
 		field := value.Field(i)
-		if field.Kind() != reflect.String || len(field.String()) > 0 {
-			continue
-		}
-		if def := typ.Field(i).Tag.Get("default"); len(def) > 0 {
-			field.SetString(def)
+		def := typ.Field(i).Tag.Get("default")
+		switch field.Kind() {
+		case reflect.String:
+			if len(field.String()) == 0 {
+				field.SetString(def)
+			}
+		case reflect.Int:
+			if field.Int() == 0 {
+				in, _ := strconv.ParseInt(def, 10, 64)
+				field.SetInt(in)
+			}
 		}
 	}
 }

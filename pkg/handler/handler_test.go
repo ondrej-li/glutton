@@ -132,6 +132,19 @@ func TestCreateHandlerParseError(t *testing.T) {
 	})
 }
 
+func TestCreateHandlerPayloadTooLarge(t *testing.T) {
+	mp := &MockParser{}
+	mp.On("Parse").Return((*iface.PayloadRecord)(nil), iface.ErrPayloadTooLarge)
+	ms := &MockSaver{}
+	mn := &MockNotifier{}
+	router := gin.Default()
+	router.POST("test", handler.CreateHandler("test", mp, mn, ms, false))
+	req, _ := http.NewRequest("POST", "http://localhost/test", nil)
+	testHTTPResponse(t, router, req, func(w *httptest.ResponseRecorder) bool {
+		return assert.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
+	})
+}
+
 func TestCreateHandlerNotifierError(t *testing.T) {
 	mp := &MockParser{}
 	mp.On("Parse").Return(&iface.PayloadRecord{}, nil)

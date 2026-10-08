@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/defectus/glutton/pkg/iface"
 	"github.com/gin-contrib/cors"
@@ -40,7 +41,9 @@ func Run() error {
 	appContext, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 	hookOnExit(cancelFunc)
-	return serve(appContext, env.Server, env.Configuration.Host+":"+env.Configuration.Port)
+	address := env.Configuration.Host + ":" + env.Configuration.Port
+	log.Printf("listening on %s", address)
+	return serve(appContext, env.Server, address)
 }
 
 // closeAll releases all resources held by the environment.
@@ -52,16 +55,38 @@ func closeAll(env *iface.Env) {
 	}
 }
 
+// server timeouts protecting the service from slow or stalled clients
+const (
+	readHeaderTimeout = 10 * time.Second
+	readTimeout       = 30 * time.Second
+	writeTimeout      = 30 * time.Second
+	idleTimeout       = 60 * time.Second
+	shutdownTimeout   = 5 * time.Second
+)
+
 // serve runs the HTTP server and blocks until it fails or the provided context is cancelled. Any error returned by the server is reported to the caller instead of being discarded.
-func serve(ctx context.Context, server *gin.Engine, address string) error {
+func serve(ctx context.Context, engine *gin.Engine, address string) error {
+	server := &http.Server{
+		Addr:              address,
+		Handler:           engine,
+		ReadHeaderTimeout: readHeaderTimeout,
+		ReadTimeout:       readTimeout,
+		WriteTimeout:      writeTimeout,
+		IdleTimeout:       idleTimeout,
+	}
 	serverError := make(chan error, 1)
 	go func() {
-		serverError <- server.Run(address)
+		serverError <- server.ListenAndServe()
 	}()
 	select {
 	case err := <-serverError:
 		return errors.Wrap(err, "error running server")
 	case <-ctx.Done():
+		shutdownContext, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer cancel()
+		if err := server.Shutdown(shutdownContext); err != nil {
+			return errors.Wrap(err, "error shutting down server")
+		}
 		return nil
 	}
 }

@@ -34,6 +34,7 @@ type Settings struct {
 	Saver               string `env:"SAVER" default:"SimpleFileSystemSaver" yaml:"saver"`
 	UseToken            bool   `env:"USE_TOKEN" default:"false" yaml:"use_token"`
 	TokenKey            string `env:"TOKEN_KEY" yaml:"token_key"`
+	MaxBodySize         int    `env:"MAX_BODY_SIZE" default:"1048576" yaml:"max_body_size"`
 	SQLDriver           string `env:"SQL_DRIVER" default:"postgres" yaml:"sql_driver"`
 	SQLayout            string `env:"SQL_LAYOUT" yaml:"sql_layout"`
 	SQLConnectionString string `env:"SQL_CONNECTION_STRING" default:"postgres://root:root@localhost/postgres?sslmode=disable" yaml:"sql_connection_string"`

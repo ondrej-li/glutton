@@ -1,11 +1,15 @@
 package iface
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 )
+
+// ErrPayloadTooLarge is returned by a parser when the request payload exceeds the maximum configured size.
+var ErrPayloadTooLarge = errors.New("payload too large")
 
 // PayloadRecord holds data related to a single request in a parsed form.
 type PayloadRecord struct {
