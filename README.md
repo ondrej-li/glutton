@@ -13,9 +13,16 @@ Glutton is a small HTTP server that can be called with *ANY* data and the data i
 
 * from source
    * run `make run` - this will spin up glutton on local port 4354
+* the bundled examples
+   * run `bash examples/scripts/run-all.sh` - builds glutton and walks through the filesystem saver, token auth, HTTPS and Postgres setups, starting and stopping the server for you
 * docker
    * run `docker --rm -it -p 4354:4354 -v glutton:glutton defectus/glutton` - this will spin up glutton on local port 4354
    * more meaningful command would look like `run -d --name glutton --restart=always --log-driver=syslog --log-opt tag=glutton --env-file /etc/glutton/glutton.env -v /var/glutton/:/out/ -p 8888:8080 defectus/glutton:latest`. 
+
+## Getting started quickly
+
+* [examples/](examples/README.md) holds runnable scripts and the configs they use - one per feature, each building the binary, starting the server on a fixed port, exercising it and shutting it down again.
+* [.claude/skills/](.claude/skills/) holds Claude Skills (`glutton-run`, `glutton-configure`) so an agent can start, verify and configure an instance without reading the source first.
 
 ## Configuration
 

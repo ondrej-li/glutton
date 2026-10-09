@@ -1,0 +1,15 @@
+# Store payloads in Postgres instead of the filesystem.
+# The table is not created automatically, see examples/sql/schema.sql.
+# 05-postgres.sh writes its own copy of this file so the connection string
+# can come from the GLUTTON_POSTGRES_DSN environment variable.
+host: 127.0.0.1
+port: "4358"
+
+settings:
+  - name: postgres example
+    uri: save
+    parser: SimpleParser
+    notifier: NilNotifier
+    saver: DatabaseSaver
+    sql_driver: postgres
+    sql_connection_string: postgres://postgres:postgres@127.0.0.1:5432/glutton?sslmode=disable
