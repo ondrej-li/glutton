@@ -1,0 +1,16 @@
+# HTTPS using your own certificate. The certificate and key paths are not
+# set here on purpose: 04-https-certificate.sh supplies them through the
+# CERT_FILE and KEY_FILE environment variables, which take precedence over
+# this file. They can also be added below as cert_file / key_file.
+host: 127.0.0.1
+port: "4357"
+use_tls: true
+
+settings:
+  - name: tls certificate example
+    uri: save
+    parser: SimpleParser
+    notifier: NilNotifier
+    saver: SimpleFileSystemSaver
+    output_folder: /tmp/glutton-examples/tls-certificate
+    base_name: payload_%d

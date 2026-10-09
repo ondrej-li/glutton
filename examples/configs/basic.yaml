@@ -1,0 +1,12 @@
+# Minimal setup: a single route that stores payloads on the filesystem.
+host: 127.0.0.1
+port: "4354"
+
+settings:
+  - name: basic example
+    uri: save
+    parser: SimpleParser
+    notifier: NilNotifier
+    saver: SimpleFileSystemSaver
+    output_folder: /tmp/glutton-examples/basic
+    base_name: payload_%d

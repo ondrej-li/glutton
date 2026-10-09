@@ -1,0 +1,17 @@
+# Token protected route. Saving requires a token fetched from
+# GET /v1/glutton/save/token, and that endpoint itself requires the
+# configured key in the `token-key` header.
+host: 127.0.0.1
+port: "4355"
+
+settings:
+  - name: token example
+    uri: save
+    use_token: true
+    # must be 16, 24 or 32 bytes - glutton refuses to start otherwise
+    token_key: 0123456789abcdef
+    parser: SimpleParser
+    notifier: NilNotifier
+    saver: SimpleFileSystemSaver
+    output_folder: /tmp/glutton-examples/token
+    base_name: payload_%d

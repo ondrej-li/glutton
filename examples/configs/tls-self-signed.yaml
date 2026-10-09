@@ -1,0 +1,14 @@
+# HTTPS using a certificate generated in memory at startup.
+# Handy for local testing; clients must skip verification (curl -k).
+host: 127.0.0.1
+port: "4356"
+use_tls: true
+
+settings:
+  - name: tls self signed example
+    uri: save
+    parser: SimpleParser
+    notifier: NilNotifier
+    saver: SimpleFileSystemSaver
+    output_folder: /tmp/glutton-examples/tls-self-signed
+    base_name: payload_%d
