@@ -20,7 +20,7 @@ func TestServeReportsErrorWhenPortInUse(t *testing.T) {
 	assert.NoError(t, err)
 	defer listener.Close()
 
-	err = serve(context.Background(), gin.New(), listener.Addr().String())
+	err = serve(context.Background(), gin.New(), listener.Addr().String(), nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "error running server")
 }
@@ -36,7 +36,7 @@ func TestServeReturnsOnContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() {
-		done <- serve(ctx, gin.New(), address)
+		done <- serve(ctx, gin.New(), address, nil)
 	}()
 
 	time.Sleep(300 * time.Millisecond)
