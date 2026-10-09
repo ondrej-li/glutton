@@ -4,9 +4,11 @@ import (
 	"database/sql"
 	"encoding/json"
 
+	"github.com/defectus/glutton/pkg/iface"
 	"github.com/pkg/errors"
 
-	"github.com/defectus/glutton/pkg/iface"
+	// registers the "postgres" driver referenced by the default configuration
+	_ "github.com/lib/pq"
 )
 
 const defaultLayout = "INSERT INTO payload(ts, remote, meta, payload) VALUES ($1, $2, $3, $4)"

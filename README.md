@@ -51,8 +51,8 @@ settings:
     token_key: 0123456789abcdef # a key to use to encrypt access tokens, if enabled; must be 16, 24 or 32 bytes
     use_token: false 
     sql_driver: postgres # if configured to use the `DatabaseSaver`
-    sql_layout: "INSERT INTO payload(ts, remote, meta, payload) VALUES ($1, $2, $3, $4)" # $1 is the timestamp, $2 is the remote host, $3 is meta data map and $4 is the payload
-    sql_connection_string: "postgres://root:root@localhost/postgres?sslmode=disable"
+    sql_layout: "INSERT INTO payload(ts, remote, meta, payload) VALUES ($1, $2, $3, $4)" # $1 is the timestamp, $2 is the remote host, $3 is the meta data serialized as json and $4 is the payload
+    sql_connection_string: "postgres://user:password@localhost:5432/glutton?sslmode=disable"
 ```
 
 As you can see, the settings is fairly straight forward. When using the environment keys are:
@@ -73,9 +73,20 @@ SimpleFileSystemSaver settings
 
 DatabaseSaver settings
 
-* `SQL_DRIVER`
-* `SQL_LAYOUT`
-* `SQL_CONNECTION_STRING`
+* `SQL_DRIVER` - the database driver to use; `postgres` is bundled
+* `SQL_LAYOUT` - the insert statement; `$1` is the timestamp, `$2` the remote host, `$3` the meta data as json and `$4` the payload
+* `SQL_CONNECTION_STRING` - the driver specific connection string, e.g. `postgres://user:password@localhost:5432/glutton?sslmode=disable`
+
+The table referenced by `SQL_LAYOUT` is not created automatically. For the default layout create it with:
+
+```sql
+CREATE TABLE payload (
+    ts      timestamptz NOT NULL,
+    remote  text        NOT NULL,
+    meta    jsonb       NOT NULL,
+    payload text        NOT NULL
+);
+```
 
 SMTPNotifier settings
 
