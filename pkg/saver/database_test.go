@@ -6,6 +6,8 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -119,4 +121,30 @@ func TestDatabaseSaverSaveReturnsError(t *testing.T) {
 func TestDatabaseSaverCloseWithoutConnection(t *testing.T) {
 	ds := new(DatabaseSaver)
 	assert.NoError(t, ds.Close())
+}
+
+func TestDatabaseSaverPostgresIntegration(t *testing.T) {
+	dsn := os.Getenv("GLUTTON_TEST_POSTGRES_DSN")
+	if len(dsn) == 0 {
+		t.Skip("set GLUTTON_TEST_POSTGRES_DSN to run the postgres integration test")
+	}
+	ds := new(DatabaseSaver)
+	assert.NoError(t, ds.Configure(&iface.Settings{SQLDriver: "postgres", SQLConnectionString: dsn}))
+	defer ds.Close()
+
+	payload := fmt.Sprintf("integration-%d", time.Now().UnixNano())
+	assert.NoError(t, ds.Save(&iface.PayloadRecord{
+		Payload:   payload,
+		Timestamp: time.Now(),
+		Remote:    "127.0.0.1",
+		Meta:      map[string][]string{"Content-Type": {"application/json"}},
+	}))
+
+	db, err := sql.Open("postgres", dsn)
+	assert.NoError(t, err)
+	defer db.Close()
+
+	var count int
+	assert.NoError(t, db.QueryRow("SELECT count(*) FROM payload WHERE payload = $1", payload).Scan(&count))
+	assert.Equal(t, 1, count)
 }
