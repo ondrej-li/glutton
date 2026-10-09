@@ -31,6 +31,9 @@ Basic structure of the yaml file:
 debug: true
 port: 8080
 host: 0.0.0.0
+use_tls: false # serve over https; without cert_file/key_file a self signed certificate is generated
+cert_file: # optional path to a certificate, requires key_file
+key_file: # optional path to the matching private key, requires cert_file
 settings:
   - name: default glutton route
     redirect: some_url
@@ -59,6 +62,9 @@ As you can see, the settings is fairly straight forward. When using the environm
 * `DEBUG`
 * `HOST`
 * `PORT`
+* `USE_TLS`
+* `CERT_FILE`
+* `KEY_FILE`
 * `NAME`
 * `URI`
 * `REDIRECT`
@@ -120,6 +126,19 @@ curl -H 'token-key: 0123456789abcdef' http://localhost:4354/v1/glutton/save/toke
 
 Tokens are valid for five minutes.
 
+## TLS
+
+Set `use_tls` (or `USE_TLS=true`) to serve every route over https. Two modes are supported:
+
+* **Provided certificate** - set `cert_file` and `key_file` to a PEM encoded certificate and its private key. Both are required; the application refuses to start when only one is given or the files cannot be read.
+* **Self signed certificate** - leave `cert_file`/`key_file` unset and glutton generates a certificate in memory at startup (valid for `localhost`, `127.0.0.1`, `::1` and the configured `host`). Handy for local testing, but clients have to skip verification.
+
+```yaml
+use_tls: true
+cert_file: /etc/glutton/cert.pem
+key_file: /etc/glutton/key.pem
+```
+
 ## Output
 
 Requests are stored on a path defined by the `OUTPUT_FOLDER` variable. If ommited it defaults to `glutton`.
@@ -133,6 +152,8 @@ In the future releases you hopefully find the following features
 ✔️ redirect on save 
 
 ️️✔️ auth tokens (allow saving with a valid token only)
+
+✔️ serving over https (self signed or provided certificate)
 
 
 above all, keep this project low profile, I'm not building an application server here. glutton must be simple, stupid.

@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+	"crypto/tls"
 	"flag"
 	"log"
 	"net/http"
@@ -41,8 +42,16 @@ func Run() error {
 	defer cancelFunc()
 	hookOnExit(cancelFunc)
 	address := env.Configuration.Host + ":" + env.Configuration.Port
-	log.Printf("listening on %s", address)
-	return serve(appContext, env.Server, address)
+	tlsConfiguration, err := serverTLSConfig(env.Configuration)
+	if err != nil {
+		log.Panicf("error configuring tls %+v", err)
+	}
+	if tlsConfiguration != nil {
+		log.Printf("listening on %s over https", address)
+	} else {
+		log.Printf("listening on %s", address)
+	}
+	return serve(appContext, env.Server, address, tlsConfiguration)
 }
 
 // closeAll releases all resources held by the environment.
@@ -63,11 +72,12 @@ const (
 	shutdownTimeout   = 5 * time.Second
 )
 
-// serve runs the HTTP server and blocks until it fails or the provided context is cancelled. Any error returned by the server is reported to the caller instead of being discarded.
-func serve(ctx context.Context, engine *gin.Engine, address string) error {
+// serve runs the HTTP (or HTTPS when tlsConfig is provided) server and blocks until it fails or the provided context is cancelled. Any error returned by the server is reported to the caller instead of being discarded.
+func serve(ctx context.Context, engine *gin.Engine, address string, tlsConfiguration *tls.Config) error {
 	server := &http.Server{
 		Addr:              address,
 		Handler:           engine,
+		TLSConfig:         tlsConfiguration,
 		ReadHeaderTimeout: readHeaderTimeout,
 		ReadTimeout:       readTimeout,
 		WriteTimeout:      writeTimeout,
@@ -75,6 +85,11 @@ func serve(ctx context.Context, engine *gin.Engine, address string) error {
 	}
 	serverError := make(chan error, 1)
 	go func() {
+		if tlsConfiguration != nil {
+			// certificates come from TLSConfig, hence the empty file names
+			serverError <- server.ListenAndServeTLS("", "")
+			return
+		}
 		serverError <- server.ListenAndServe()
 	}()
 	select {

@@ -13,6 +13,10 @@ type Configuration struct {
 	Debug    bool       `env:"DEBUG" yaml:"debug"`
 	Host     string     `env:"HOST" default:"0.0.0.0" yaml:"host"`
 	Port     string     `env:"PORT" default:"4354" yaml:"port"`
+	// UseTLS serves the routes over https. When CertFile and KeyFile are set the provided certificate is used, otherwise a self signed one is generated.
+	UseTLS   bool   `env:"USE_TLS" default:"false" yaml:"use_tls"`
+	CertFile string `env:"CERT_FILE" yaml:"cert_file"`
+	KeyFile  string `env:"KEY_FILE" yaml:"key_file"`
 }
 
 // Settings holds configuration of a single route.
